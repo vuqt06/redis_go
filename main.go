@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 )
 
 func main() {
@@ -29,17 +28,22 @@ func main() {
 
 	// Read the data from the connection
 	for {
-		buf := make([]byte, 1024)
+		// Create a buffer to read the data
+		resp := NewResp(conn)
 
 		// Read message from client
-		_, err = conn.Read(buf)
+		msg, err := resp.Read()
 		if err != nil {
 			if err == io.EOF {
-				break
+				fmt.Println("Connection closed")
+				return
 			}
-			fmt.Println("error reading fro the client: ", err.Error())
-			os.Exit(1)
+			fmt.Println(err)
+			return
 		}
+
+		// Print the message
+		fmt.Println("Message:", msg)
 
 		// ignore request and send back a PONG
 		conn.Write([]byte("+OK\r\n"))
