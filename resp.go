@@ -137,3 +137,94 @@ func (r *Resp) ReadBulk() (Value, error) {
 
 	return v, nil
 }
+
+// Marshal function checks the type of the value and calls the appropriate function
+func (v Value) Marshal() []byte {
+	switch v.typ {
+	case "array":
+		return v.marshalArray()
+	case "bulk":
+		return v.marshalBulk()
+	case "string":
+		return v.marshalString()
+	case "null":
+		return v.marshalNull()
+	case "error":
+		return v.marshalError()
+	default:
+		return []byte{}
+	}
+}
+
+// marshalString returns the RESP string as a byte array with the appropriate format
+func (v Value) marshalString() []byte {
+	var bytes []byte
+	bytes = append(bytes, STRING)
+	bytes = append(bytes, v.str...)
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+// marshalBulk returns the RESP bulk string as a byte array with the appropriate format
+func (v Value) marshalBulk() []byte {
+	var bytes []byte
+	bytes = append(bytes, BULK)
+	bytes = append(bytes, strconv.Itoa(len(v.bulk))...)
+	bytes = append(bytes, '\r', '\n')
+	bytes = append(bytes, v.bulk...)
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+// marshalArray returns the RESP array as a byte array with the appropriate format
+func (v Value) marshalArray() []byte {
+	var bytes []byte
+	bytes = append(bytes, ARRAY)
+	bytes = append(bytes, strconv.Itoa(len(v.array))...)
+	bytes = append(bytes, '\r', '\n')
+
+	for i := 0; i < len(v.array); i++ {
+		bytes = append(bytes, v.array[i].Marshal()...)
+	}
+
+	return bytes
+}
+
+// marshalError returns the RESP error as a byte array with the appropriate format
+func (v Value) marshalNull() []byte {
+	return []byte("$-1\r\n")
+}
+
+// marshalError returns the RESP error as a byte array with the appropriate format
+func (v Value) marshalError() []byte {
+	var bytes []byte
+	bytes = append(bytes, ERROR)
+	bytes = append(bytes, v.str...)
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+// Writer represents a RESP writer
+type Writer struct {
+	writer io.Writer
+}
+
+// NewWriter creates a new RESP writer
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{writer: w}
+}
+
+// Write function writes the RESP value from Marshal function to the buffer
+func (w Writer) Write(v Value) error {
+	bytes := v.Marshal()
+
+	_, err := w.writer.Write(bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
