@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 )
 
 func main() {
@@ -42,11 +43,32 @@ func main() {
 			return
 		}
 
-		// Print the message
-		fmt.Println("Message:", msg)
+		if msg.typ != "array" {
+			fmt.Println("Invalid request, expected array")
+			continue
+		}
 
-		// ignore request and send back a PONG
+		if len(msg.array) == 0 {
+			fmt.Println("Invalid request, empty array")
+			continue
+		}
+
+		// Get the command
+		msg.array = msg.array[len(msg.array)/2:]
+		command := strings.ToUpper(msg.array[0].bulk)
+		args := msg.array[1:]
 		writer := NewWriter(conn)
-		writer.Write(Value{typ: "string", str: "OK"})
+
+		// Get the handler for the command
+		handler, ok := Handlers[command]
+		if !ok {
+			fmt.Println("Invalid command: ", command)
+			writer.Write(Value{typ: "string", str: ""})
+			continue
+		}
+
+		// Execute the handler
+		result := handler(args)
+		writer.Write(result)
 	}
 }

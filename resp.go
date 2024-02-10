@@ -109,7 +109,9 @@ func (r *Resp) ReadArray() (Value, error) {
 		}
 
 		// Add the value to the array
-		v.array = append(v.array, val)
+		if val.typ != "" {
+			v.array = append(v.array, val)
+		}
 	}
 	return v, nil
 }
