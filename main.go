@@ -18,6 +18,32 @@ func main() {
 		return
 	}
 
+	// Create or open an AOF file
+	aof, err := NewAof("database.aof")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer aof.Close()
+
+	// Read the AOF file and rebuild the database
+	aof.Read(func(value Value) {
+		// Get the command
+		value.array = value.array[len(value.array)/2:]
+		command := strings.ToUpper(value.array[0].bulk)
+		args := value.array[1:]
+
+		// Get the handler for the command
+		handler, ok := Handlers[command]
+		if !ok {
+			fmt.Println("Invalid command: ", command)
+			return
+		}
+
+		// Execute the handler
+		handler(args)
+	})
+
 	// Accept any incoming connection
 	conn, err := server.Accept()
 	if err != nil {
@@ -65,6 +91,11 @@ func main() {
 			fmt.Println("Invalid command: ", command)
 			writer.Write(Value{typ: "string", str: ""})
 			continue
+		}
+
+		// Write to the AOF file
+		if command == "SET" || command == "HSET" {
+			aof.Write(msg)
 		}
 
 		// Execute the handler
